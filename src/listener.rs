@@ -17,7 +17,7 @@ pub fn new_socket(addr: &SocketAddr) -> Result<UdpSocket, Error> {
     Ok(socket)
 }
 
-pub fn join_multicast(socket: &mut UdpSocket, group: &IpAddr) -> IoResult<()> {
+pub fn join_multicast(socket: &UdpSocket, group: &IpAddr) -> IoResult<()> {
     // TODO(ishan): Eventually, this should only listen on the
     // interfaces specified in config.toml
     match group {

@@ -1,3 +1,4 @@
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs::File, io::Read, net::IpAddr};
 
@@ -11,6 +12,12 @@ pub struct Record {
     pub port: u16,
     pub multicast_groups: Vec<IpAddr>,
     pub destinations: Vec<String>,
+    pub traffic_type: TrafficType,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum TrafficType {
+    MDNS,
 }
 
 impl Config {
@@ -18,6 +25,10 @@ impl Config {
 
     pub fn parse(mut filename: &str) -> Result<Config, String> {
         if filename.is_empty() {
+            debug!(
+                "filename is empty. using default name: {}",
+                Config::FILENAME
+            );
             filename = Config::FILENAME;
         }
 
