@@ -1,3 +1,8 @@
+use multicaster::Config;
 fn main() {
-    println!("Hello, world!");
+    let config = Config::parse("config.toml").expect("error in parsing config");
+
+    println!("{:?}", config);
+
+    multicaster::start(config);
 }

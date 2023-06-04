@@ -1,0 +1,4 @@
+[config.mdns]
+port = 5353
+multicast_groups = ["224.0.0.251"]
+destinations = ["wlp6s0"]
