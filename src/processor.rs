@@ -90,6 +90,10 @@ impl<'a> Processor<'a> {
                             .into_iter()
                             .filter_map(|dst_if| interfaces.iter().find(|x| x.name == dst_if));
 
+                        // TODO(ishan): Stop blasting this every where.
+                        // Try to limit answers traffic between destinations
+                        // it should not be broadcasting an answer to all networks just because 1
+                        // asked for it
                         for dst_if in dst_ifs {
                             let dst_ifid = ifname_to_ifidx(dst_if.name.to_string());
 
