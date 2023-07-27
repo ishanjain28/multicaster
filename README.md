@@ -7,7 +7,7 @@ It'll allow you to be very specific about the exact traffic that is sent over.
 # Working Notes
 
 1. It needs to listen on the specified port to receive multicast traffic.
-This causes problems if there are other softwares that are also listening without using `SO_ADDR_REUSE`.
+This causes problems if there are other softwares that are also listening without using `SO_REUSE_ADDR`.
 
 For now, Disable those softwares when running this. A list of such softwares,
 
@@ -33,7 +33,7 @@ For now, Only work on IPv4. IPv6 will be added once IPv4 is ready
 
 3. A DNS query from destination should not be forwarded to source if it is not in the allow list for the config
 
-4. A DNS answer should not be forwarded from destination to source in any circumstances
+4. A DNS answer should not be forwarded from destination to source in any circumstances. This is not enforced right now.
 
 
 

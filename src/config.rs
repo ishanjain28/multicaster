@@ -1,11 +1,6 @@
 use log::debug;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    fs::File,
-    io::Read,
-    net::IpAddr,
-};
+use std::{collections::HashSet, fs::File, io::Read};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -14,8 +9,6 @@ pub struct Config {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MdnsConfig {
-    pub port: u16,
-    pub multicast_groups: Vec<IpAddr>,
     pub destinations: Vec<String>,
     pub sources: Vec<String>,
     pub filters: HashSet<String>,

@@ -24,7 +24,6 @@ fn main() {
 
     // TODO(ishan): Start listeners and transmitters on v4 and v6 here
     let mut comms = Communications::new(config.clone()).expect("error in starting comms");
-
     comms
         .start_listeners()
         .expect("error in starting listeners");
