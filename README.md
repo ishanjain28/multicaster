@@ -25,7 +25,15 @@ For now, Only work on IPv4. IPv6 will be added once IPv4 is ready
 
 
 
+#### MDNS
 
+1. If a DNS Query comes on the source interface, We don't forward it to the destination. We want the destination to be able to resolve mdns hosts in source. A Query from source should not be forwarded to the destination.
+
+2. A DNS answer from source should be forwarded to the destination _if_ the domain name is in the allow list for that config.
+
+3. A DNS query from destination should not be forwarded to source if it is not in the allow list for the config
+
+4. A DNS answer should not be forwarded from destination to source in any circumstances
 
 
 

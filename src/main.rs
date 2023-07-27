@@ -3,29 +3,34 @@
 // Or a common listener/transmitter and then different modules to parse and transmit each type of
 // traffic
 
+pub mod socket_manager;
+pub use socket_manager::*;
 pub mod communications;
 pub use communications::*;
 pub mod config;
 pub use config::*;
-pub mod listener;
 pub mod processor;
+use log::info;
 pub use processor::*;
 
 fn main() {
     env_logger::init();
+
+    info!("starting up");
 
     let config = Config::parse("config.toml").expect("error in parsing config");
 
     println!("{:?}", config);
 
     // TODO(ishan): Start listeners and transmitters on v4 and v6 here
-    let mut comms = Communications::new(config).expect("error in starting comms");
+    let mut comms = Communications::new(config.clone()).expect("error in starting comms");
 
     comms
         .start_listeners()
         .expect("error in starting listeners");
 
-    let processor = Processor::new(comms.get_reader());
+    let processor =
+        Processor::new(comms.get_reader(), config).expect("error in starting processor");
 
     processor.start_read_loop();
 

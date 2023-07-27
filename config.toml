@@ -1,5 +1,6 @@
-[config.mdns]
+[[mdns]]
 port = 5353
 multicast_groups = ["224.0.0.251"]
+sources = ["enp7s0", "lo"]
 destinations = ["wlp6s0"]
-traffic_type = "MDNS"
+filters = [ "emerald.local" ]

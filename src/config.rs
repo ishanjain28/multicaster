@@ -1,23 +1,24 @@
 use log::debug;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs::File, io::Read, net::IpAddr};
+use std::{
+    collections::{HashMap, HashSet},
+    fs::File,
+    io::Read,
+    net::IpAddr,
+};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    pub config: HashMap<String, Record>,
+    pub mdns: Vec<MdnsConfig>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Record {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MdnsConfig {
     pub port: u16,
     pub multicast_groups: Vec<IpAddr>,
     pub destinations: Vec<String>,
-    pub traffic_type: TrafficType,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum TrafficType {
-    MDNS,
+    pub sources: Vec<String>,
+    pub filters: HashSet<String>,
 }
 
 impl Config {
