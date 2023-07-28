@@ -81,8 +81,8 @@ impl Processor {
                     let dst_ifid = ifname_to_ifidx(dst_if.name.to_string());
 
                     info!(
-                        "forwarding {:?} from {} to {}",
-                        packet, src_ifname, dst_if.name
+                        "forwarding packet questions {:?} answers = {:?} from {} to {}",
+                        packet.questions, packet.answers, src_ifname, dst_if.name
                     );
                     // TODO(ishan): Take a note of transaction id
                     // and avoid feedback loops
