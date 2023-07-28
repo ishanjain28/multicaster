@@ -49,15 +49,13 @@ impl Processor {
                 packet.answers.iter().map(|q| q.name).collect::<Vec<_>>()
             );
             for conf in &self.config.mdns {
-                let mut forward = false;
                 let mut dst_ifs = vec![];
 
                 for query in &packet.questions {
-                    forward |= conf.destinations.contains(&src_ifname)
+                    if conf.destinations.contains(&src_ifname)
                         && (conf.filters.is_empty()
-                            || conf.filters.contains(&query.qname.to_string()));
-
-                    if forward {
+                            || conf.filters.contains(&query.qname.to_string()))
+                    {
                         dst_ifs.extend(
                             conf.sources
                                 .iter()
@@ -67,11 +65,10 @@ impl Processor {
                 }
 
                 for answer in &packet.answers {
-                    forward |= conf.sources.contains(&src_ifname)
+                    if conf.sources.contains(&src_ifname)
                         && (conf.filters.is_empty()
-                            || conf.filters.contains(&answer.name.to_string()));
-
-                    if forward {
+                            || conf.filters.contains(&answer.name.to_string()))
+                    {
                         dst_ifs.extend(
                             conf.destinations
                                 .iter()
@@ -84,8 +81,8 @@ impl Processor {
                     let dst_ifid = ifname_to_ifidx(dst_if.name.to_string());
 
                     info!(
-                        "forwarding {:?} from {:?} to {:?}({})",
-                        packet, src_ifname, dst_if, dst_ifid
+                        "forwarding {:?} from {} to {}",
+                        packet, src_ifname, dst_if.name
                     );
                     // TODO(ishan): Take a note of transaction id
                     // and avoid feedback loops
