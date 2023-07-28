@@ -1,17 +1,20 @@
+#![feature(async_closure)]
 // TODO(ishan): Eventually we'll have a listener and transmitter module for every thing we want to
 // support. So, 1 for MDNS, another for WSDD?
 // Or a common listener/transmitter and then different modules to parse and transmit each type of
 // traffic
 
-pub mod socket_manager;
-pub use socket_manager::*;
 pub mod communications;
+use std::sync::mpsc::{self, Receiver, Sender};
+
 pub use communications::*;
 pub mod config;
 pub use config::*;
 pub mod processor;
 use log::info;
+use multicast_socket::Message;
 pub use processor::*;
+use tokio::runtime::Runtime;
 
 fn main() {
     env_logger::init();
@@ -22,16 +25,24 @@ fn main() {
 
     println!("{:?}", config);
 
-    // TODO(ishan): Start listeners and transmitters on v4 and v6 here
-    let mut comms = Communications::new(config.clone()).expect("error in starting comms");
-    comms
-        .start_listeners()
-        .expect("error in starting listeners");
+    let rt = Runtime::new().expect("error in creating runtime");
 
-    let processor =
-        Processor::new(comms.get_reader(), config).expect("error in starting processor");
+    // This channel is used to send packets from this module to the processor
+    // TODO(ishan): Eventually, swap out std::mpsc for some thing faster
+    // or switch to a different model completely that doesn't use channels like this
+    let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
+
+    // TODO(ishan): Start listeners and transmitters on v4 and v6 here
+    let mut comms = Communications::new(tx).expect("error in starting comms");
+
+    rt.spawn(async move {
+        comms
+            .start_listeners()
+            .await
+            .expect("error in comms listener");
+    });
+
+    let processor = Processor::new(rx, config).expect("error in starting processor");
 
     processor.start_read_loop();
-
-    comms.wait();
 }

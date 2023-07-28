@@ -1,20 +1,20 @@
-use crate::{Config, Event};
+use crate::Config;
 use dns_parser::Packet;
-use log::{info, warn};
-use multicast_socket::{Interface, MulticastOptions, MulticastSocket};
+use log::info;
+use multicast_socket::{Interface, Message, MulticastOptions, MulticastSocket};
 use std::{ffi::CString, net::SocketAddrV4, sync::mpsc::Receiver};
 
-pub struct Processor<'a> {
-    reader: &'a Receiver<Event>,
+pub struct Processor {
+    reader: Receiver<Message>,
     config: Config,
 }
 
-impl<'a> Processor<'a> {
-    pub fn new(reader: &'a Receiver<Event>, config: Config) -> Result<Self, String> {
+impl Processor {
+    pub fn new(reader: Receiver<Message>, config: Config) -> Result<Self, String> {
         Ok(Self { reader, config })
     }
 
-    pub fn start_read_loop(&self) {
+    pub fn start_read_loop(self) {
         // mdns
         let mdns_address = SocketAddrV4::new([224, 0, 0, 251].into(), 5353);
         let socket = MulticastSocket::with_options(
@@ -30,12 +30,11 @@ impl<'a> Processor<'a> {
 
         for evt in self.reader {
             // TODO: Generalize this to parse any type of supported packet
-            let packet =
-                Packet::parse(&evt.msg.data).expect("failed to parse packet as a dns packet");
+            let packet = Packet::parse(&evt.data).expect("failed to parse packet as a dns packet");
 
             let interfaces = get_if_addrs::get_if_addrs().unwrap();
 
-            let src_ifname = if let Interface::Index(idx) = evt.msg.interface {
+            let src_ifname = if let Interface::Index(idx) = evt.interface {
                 ifidx_to_ifname(idx as u32)
             } else {
                 "lo".to_string()
@@ -44,8 +43,8 @@ impl<'a> Processor<'a> {
             info!(
                 "EVENT src-if = {} if-index {:?} address = {}, packet: {:?} answers = {:?}",
                 src_ifname,
-                evt.msg.interface,
-                evt.msg.origin_address,
+                evt.interface,
+                evt.origin_address,
                 packet.questions.iter().map(|q| q.qname).collect::<Vec<_>>(),
                 packet.answers.iter().map(|q| q.name).collect::<Vec<_>>()
             );
@@ -72,7 +71,7 @@ impl<'a> Processor<'a> {
                             // TODO(ishan): Take a note of transaction id
                             // and avoid feedback loops
                             socket
-                                .send(&evt.msg.data, &Interface::Index(dst_ifid as i32))
+                                .send(&evt.data, &Interface::Index(dst_ifid as i32))
                                 .expect("error in sending mdns packet");
                         }
                     }
@@ -103,7 +102,7 @@ impl<'a> Processor<'a> {
                             );
 
                             socket
-                                .send(&evt.msg.data, &Interface::Index(dst_ifid as i32))
+                                .send(&evt.data, &Interface::Index(dst_ifid as i32))
                                 .expect("error in sending mdns packet");
                         }
                     }
