@@ -49,63 +49,49 @@ impl Processor {
                 packet.answers.iter().map(|q| q.name).collect::<Vec<_>>()
             );
             for conf in &self.config.mdns {
+                let mut forward = false;
+                let mut dst_ifs = vec![];
+
                 for query in &packet.questions {
-                    let forward = conf.destinations.contains(&src_ifname)
+                    forward |= conf.destinations.contains(&src_ifname)
                         && (conf.filters.is_empty()
                             || conf.filters.contains(&query.qname.to_string()));
 
                     if forward {
-                        let dst_ifs = conf
-                            .sources
-                            .clone()
-                            .into_iter()
-                            .filter_map(|dst_if| interfaces.iter().find(|x| x.name == dst_if));
-
-                        for dst_if in dst_ifs {
-                            let dst_ifid = ifname_to_ifidx(dst_if.name.to_string());
-
-                            info!(
-                                "forwarding {:?} from {:?} to {:?}({})",
-                                packet, src_ifname, dst_if, dst_ifid
-                            );
-                            // TODO(ishan): Take a note of transaction id
-                            // and avoid feedback loops
-                            socket
-                                .send(&evt.data, &Interface::Index(dst_ifid as i32))
-                                .expect("error in sending mdns packet");
-                        }
+                        dst_ifs.extend(
+                            conf.sources
+                                .iter()
+                                .filter_map(|dst_if| interfaces.iter().find(|x| &x.name == dst_if)),
+                        );
                     }
                 }
 
                 for answer in &packet.answers {
-                    let forward = conf.sources.contains(&src_ifname)
+                    forward |= conf.sources.contains(&src_ifname)
                         && (conf.filters.is_empty()
                             || conf.filters.contains(&answer.name.to_string()));
 
                     if forward {
-                        let dst_ifs = conf
-                            .destinations
-                            .clone()
-                            .into_iter()
-                            .filter_map(|dst_if| interfaces.iter().find(|x| x.name == dst_if));
-
-                        // TODO(ishan): Stop blasting this every where.
-                        // Try to limit answers traffic between destinations
-                        // it should not be broadcasting an answer to all networks just because 1
-                        // asked for it
-                        for dst_if in dst_ifs {
-                            let dst_ifid = ifname_to_ifidx(dst_if.name.to_string());
-
-                            info!(
-                                "forwarding {:?} from {:?} to {:?}({})",
-                                packet, src_ifname, dst_if, dst_ifid
-                            );
-
-                            socket
-                                .send(&evt.data, &Interface::Index(dst_ifid as i32))
-                                .expect("error in sending mdns packet");
-                        }
+                        dst_ifs.extend(
+                            conf.destinations
+                                .iter()
+                                .filter_map(|dst_if| interfaces.iter().find(|x| &x.name == dst_if)),
+                        );
                     }
+                }
+
+                for dst_if in dst_ifs {
+                    let dst_ifid = ifname_to_ifidx(dst_if.name.to_string());
+
+                    info!(
+                        "forwarding {:?} from {:?} to {:?}({})",
+                        packet, src_ifname, dst_if, dst_ifid
+                    );
+                    // TODO(ishan): Take a note of transaction id
+                    // and avoid feedback loops
+                    socket
+                        .send(&evt.data, &Interface::Index(dst_ifid as i32))
+                        .expect("error in sending mdns packet");
                 }
             }
         }

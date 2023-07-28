@@ -14,8 +14,6 @@ impl Communications {
     pub async fn start_listeners(&mut self) -> Result<(), String> {
         info!("listener started");
 
-        let tx_chan = self.tx_chan.clone();
-
         let interfaces = get_if_addrs::get_if_addrs().unwrap();
         trace!("Interfaces list: {:?}", interfaces);
 
@@ -35,7 +33,9 @@ impl Communications {
         loop {
             match multicast_socket.receive() {
                 Ok(msg) => {
-                    tx_chan.send(msg).expect("error in sending to mpsc channel");
+                    self.tx_chan
+                        .send(msg)
+                        .expect("error in sending to mpsc channel");
                 }
                 Err(e) if e.to_string().contains("EAGAIN") => continue,
                 Err(e) => {

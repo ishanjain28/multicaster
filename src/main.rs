@@ -3,18 +3,17 @@
 // support. So, 1 for MDNS, another for WSDD?
 // Or a common listener/transmitter and then different modules to parse and transmit each type of
 // traffic
+use log::info;
+use multicast_socket::Message;
+use std::sync::mpsc::{self, Receiver, Sender};
+use tokio::runtime::Runtime;
 
 pub mod communications;
-use std::sync::mpsc::{self, Receiver, Sender};
-
 pub use communications::*;
 pub mod config;
 pub use config::*;
 pub mod processor;
-use log::info;
-use multicast_socket::Message;
 pub use processor::*;
-use tokio::runtime::Runtime;
 
 fn main() {
     env_logger::init();
