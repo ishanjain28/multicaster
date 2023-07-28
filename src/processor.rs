@@ -1,6 +1,6 @@
 use crate::Config;
 use dns_parser::Packet;
-use log::info;
+use log::{info, trace};
 use multicast_socket::{Interface, Message, MulticastOptions, MulticastSocket};
 use std::{ffi::CString, net::SocketAddrV4, sync::mpsc::Receiver};
 
@@ -40,7 +40,7 @@ impl Processor {
                 "lo".to_string()
             };
 
-            info!(
+            trace!(
                 "EVENT src-if = {} if-index {:?} address = {}, packet: {:?} answers = {:?}",
                 src_ifname,
                 evt.interface,
