@@ -2,14 +2,15 @@
 sources = ["eth70"]
 destinations = ["eth10", "eth20", "eth30", "eth40"]
 filters = [
-	"cups.local",
-	"_printer._tcp.local",
-	"_scanner._tcp.local",
-	"_ipp._tcp.local",
-	"_ipps._tcp.local",
-	"cups._ipps._tcp.local",
-	"lb._dns-sd._udp.local",
-	"EPSON1E715E.local",
-	"_pdl-datastream._tcp.local",
-	"EPSON M200 Series._pdl-datastream._tcp.local"
+  "cups.local",
+  "_printer._tcp.local",
+  "_scanner._tcp.local",
+  "_ipp._tcp.local",
+  "_ipps._tcp.local",
+  "cups._ipps._tcp.local",
+  "lb._dns-sd._udp.local",
+  "EPSON1E715E.local",
+  "_pdl-datastream._tcp.local",
+  "EPSON M200 Series._pdl-datastream._tcp.local",
+  "_ptp._tcp.local"
 ]
