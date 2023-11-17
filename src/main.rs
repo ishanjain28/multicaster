@@ -9,6 +9,7 @@ pub mod config;
 pub use config::*;
 pub mod mdns;
 pub use mdns::*;
+mod socket;
 
 fn main() {
     env_logger::init();

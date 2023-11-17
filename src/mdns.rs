@@ -1,7 +1,11 @@
+use crate::socket::{
+    Interface as MulticastInterface, MulticastGroup, MulticastOptions, MulticastSocket,
+};
 use crate::Config;
 use dns_parser::Packet;
 use log::{info, trace, warn};
-use multicast_socket::{Interface as MulticastInterface, MulticastOptions, MulticastSocket};
+use nix::errno::Errno;
+use std::net::{Ipv4Addr, SocketAddrV6};
 use std::{ffi::CString, net::SocketAddrV4};
 
 pub struct Mdns {
@@ -12,15 +16,12 @@ pub struct Mdns {
 impl Mdns {
     pub fn new(config: Config) -> Self {
         // mdns
-        let mdns_address = SocketAddrV4::new([224, 0, 0, 251].into(), 5353);
-        let multicast_socket = MulticastSocket::with_options(
-            mdns_address,
-            // TODO(ishan): Listen on ALL Interfaces, including ipv6
-            multicast_socket::all_ipv4_interfaces().expect("could not fetch all interfaces"),
-            MulticastOptions {
-                loopback: false,
-                buffer_size: 4096,
-                ..Default::default()
+        let multicast_socket = MulticastSocket::new(
+            MulticastOptions::default(),
+            MulticastSocket::all_interfaces().unwrap(),
+            MulticastGroup {
+                ipv4: Some(SocketAddrV4::new(Ipv4Addr::new(224, 0, 0, 251), 5353)),
+                port: 5353,
             },
         )
         .expect("error in creating multicast socket");
@@ -37,7 +38,14 @@ impl Mdns {
         loop {
             match self.socket.receive() {
                 Ok(msg) => self.process_packet(msg),
-                Err(e) if e.to_string().contains("EAGAIN") => continue,
+                Err(e)
+                    if e.get_ref().map_or(false, |e| {
+                        e.downcast_ref::<nix::Error>()
+                            .is_some_and(|c| *c == Errno::EAGAIN)
+                    }) =>
+                {
+                    continue;
+                }
                 Err(e) => {
                     warn!("error in reading from socket {:?} ", e);
                 }
@@ -45,9 +53,16 @@ impl Mdns {
         }
     }
 
-    pub fn process_packet(&self, msg: multicast_socket::Message) {
+    pub fn process_packet(&self, msg: crate::socket::Message) {
         // TODO: Generalize this to parse any type of supported packet
-        let packet = Packet::parse(&msg.data).expect("failed to parse packet as a dns packet");
+        let packet = Packet::parse(&msg.data).unwrap_or_else(|e| {
+            panic!(
+                "failed to parse packet as a dns packet: {:?} error = {:?}, loose_string = {}",
+                msg,
+                e,
+                String::from_utf8_lossy(&msg.data)
+            )
+        });
 
         let src_ifname = if let MulticastInterface::Index(idx) = msg.interface {
             ifidx_to_ifname(idx as u32)
@@ -56,12 +71,12 @@ impl Mdns {
         };
 
         trace!(
-            "EVENT src-if = {} if-index {:?} address = {}, packet: {:?} answers = {:?}",
+            "EVENT src-if = {} if-index {:?} address = {:?}, packet: {:?} answers = {:?}",
             src_ifname,
             msg.interface,
             msg.origin_address,
-            packet.questions.iter().map(|q| q.qname).collect::<Vec<_>>(),
-            packet.answers.iter().map(|q| q.name).collect::<Vec<_>>()
+            packet.questions.iter().collect::<Vec<_>>(),
+            packet.answers.iter().collect::<Vec<_>>()
         );
 
         let interfaces = get_if_addrs::get_if_addrs().unwrap();
@@ -97,8 +112,8 @@ impl Mdns {
                 let dst_ifid = ifname_to_ifidx(dst_if.name.to_string());
 
                 info!(
-                    "forwarding packet questions {:?} answers = {:?} from {} to {}",
-                    packet.questions, packet.answers, src_ifname, dst_if.name
+                    "forwarding packet packet {:?} from {} to {}",
+                    packet, src_ifname, dst_if.name
                 );
                 // TODO(ishan): Take a note of transaction id
                 // and avoid feedback loops
