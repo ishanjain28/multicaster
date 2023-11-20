@@ -5,7 +5,7 @@ use crate::Config;
 use dns_parser::Packet;
 use log::{info, trace, warn};
 use nix::errno::Errno;
-use std::net::{Ipv4Addr, SocketAddrV6};
+use std::net::Ipv4Addr;
 use std::{ffi::CString, net::SocketAddrV4};
 
 pub struct Mdns {
@@ -20,7 +20,7 @@ impl Mdns {
             MulticastOptions::default(),
             MulticastSocket::all_interfaces().unwrap(),
             MulticastGroup {
-                ipv4: Some(SocketAddrV4::new(Ipv4Addr::new(224, 0, 0, 251), 5353)),
+                ipv4: SocketAddrV4::new(Ipv4Addr::new(224, 0, 0, 251), 5353),
                 port: 5353,
             },
         )

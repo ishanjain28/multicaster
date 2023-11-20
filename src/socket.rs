@@ -49,15 +49,7 @@ impl MulticastSocket {
         interfaces: HashMap<String, Vec<IpAddr>>,
         multicast_group: MulticastGroup,
     ) -> Result<Self, std::io::Error> {
-        // We want to accept traffic on IPv4 and IPv6.
-        // and I don't want to deal with 2 sockets. 1 for ipv4 and 1 for ipv6
-        // so we do this
-        // Create a single Ipv6 socket and disable IPV6_ONLY option
-        // This is already disabled on new OSes but just to be safe we do it any way
-        // With this, We can accept IPv6 traffic _and_ we can accept IPv4 traffic
-        // except the address for IPv4 will be presented within IPv6
-
-        let socket = Socket::new(Domain::IPV6, Type::DGRAM, Some(Protocol::UDP))?;
+        let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
         socket.set_read_timeout(Some(options.read_timeout))?;
         socket.set_multicast_loop_v4(false)?;
         socket.set_reuse_address(true)?;
@@ -68,52 +60,35 @@ impl MulticastSocket {
         // setting this option allows for determining on which interface a packet was received.
         sock::setsockopt(socket.as_raw_fd(), sock::sockopt::Ipv4PacketInfo, &true)
             .map_err(nix_to_io_error)?;
-        sock::setsockopt(socket.as_raw_fd(), sock::sockopt::Ipv6RecvPacketInfo, &true)
-            .map_err(nix_to_io_error)?;
-
-        // Receive IPv4 traffic on IPv6 socket
-        sock::setsockopt(socket.as_raw_fd(), sock::sockopt::Ipv6V6Only, &false)
-            .map_err(nix_to_io_error);
 
         for (if_name, addresses) in interfaces.iter() {
             trace!(
-                "joining groups if_name = {} addresses = {:?}",
-                if_name,
-                addresses
+                "joining groups = {:?} interface = {:?}",
+                multicast_group.ipv4.ip(),
+                Ipv4Addr::UNSPECIFIED
             );
 
-            if addresses.iter().any(|addr| addr.is_ipv6()) {
-                trace!(
-                    "joined ipv6 multicast group {} if_name {}",
-                    multicast_group.ipv6.ip(),
-                    if_name
-                );
+            socket.join_multicast_v4(multicast_group.ipv4.ip(), &Ipv4Addr::UNSPECIFIED);
 
-                socket.join_multicast_v6(
-                    multicast_group.ipv6.ip(),
-                    ifname_to_ifidx(if_name.to_string()),
-                );
-            }
             for address in addresses {
                 if let IpAddr::V4(v4_addr) = address {
                     if v4_addr.is_loopback() {
                         continue;
                     }
 
-                    if let Some(ipv4_mdns_group) = multicast_group.ipv4 {
-                        trace!(
-                            "joined ipv4 multicast group {} {}",
-                            ipv4_mdns_group.ip(),
-                            v4_addr
-                        );
-                        socket.join_multicast_v4(ipv4_mdns_group.ip(), v4_addr)?;
-                    }
+                    socket.join_multicast_v4(multicast_group.ipv4.ip(), v4_addr)?;
+
+                    trace!(
+                        "joined ipv4 multicast group {} {}",
+                        multicast_group.ipv4.ip(),
+                        v4_addr
+                    );
                 }
             }
         }
 
         socket.bind(
-            &SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), multicast_group.port).into(),
+            &SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), multicast_group.port).into(),
         )?;
 
         Ok(MulticastSocket {
