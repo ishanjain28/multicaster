@@ -5,6 +5,6 @@ pub struct Record {}
 
 impl Record {
     pub fn parse(data: &[u8], original: &[u8]) -> Result<Self, ParserError> {
-        Err(ParserError::UnexpectedEOP)
+        Ok(Self {})
     }
 }

@@ -1,5 +1,5 @@
 use crate::socket::{Interface as MulticastInterface, MulticastOptions, MulticastSocket};
-use crate::Config;
+use crate::{Config, DnsPacket};
 use dns_parser::Packet;
 use log::{info, trace, warn};
 use nix::errno::Errno;
@@ -50,7 +50,7 @@ impl Mdns {
 
     pub fn process_packet(&self, msg: crate::socket::Message) {
         // TODO: Generalize this to parse any type of supported packet
-        let packet = Packet::parse(&msg.data).unwrap_or_else(|e| {
+        let packet = DnsPacket::parse(&msg.data).unwrap_or_else(|e| {
             trace!("{:0x?}", msg.data);
 
             panic!(

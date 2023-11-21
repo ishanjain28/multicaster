@@ -33,6 +33,7 @@ impl ResourceRecord {
         if read + rdlength as usize > data.len() {
             return Err(ParserError::UnexpectedEOP);
         }
+
         let rdata = RData::parse(rtype, &data[read..read + rdlength as usize], original)?;
         read += rdlength as usize;
 

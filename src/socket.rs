@@ -27,7 +27,7 @@ impl Default for MulticastOptions {
     fn default() -> Self {
         MulticastOptions {
             read_timeout: Duration::from_secs(1),
-            buffer_size: 512,
+            buffer_size: 4096,
         }
     }
 }
