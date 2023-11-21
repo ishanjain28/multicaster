@@ -10,4 +10,7 @@ pub enum ParserError {
 
     #[error("Label is not UTF-8")]
     LabelIsNotUTF8,
+
+    #[error("Unknown rtype: {0}")]
+    UnknownRType(u16),
 }

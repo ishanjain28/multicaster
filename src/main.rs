@@ -1,3 +1,4 @@
+#![feature(ip_bits)]
 #![feature(async_closure)]
 // TODO(ishan): Eventually we'll have a listener and transmitter module for every thing we want to
 // support. So, 1 for MDNS, another for WSDD?

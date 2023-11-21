@@ -2,7 +2,10 @@
 
 use log::trace;
 // This code has been adapted from multicast_socket crate
-use nix::sys::socket::{self as sock, AddressFamily, SockaddrIn, SockaddrLike, SockaddrStorage};
+use nix::sys::{
+    self,
+    socket::{self as sock, AddressFamily, SockAddr, SockaddrIn, SockaddrLike, SockaddrStorage},
+};
 use serde::de::value;
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
@@ -33,21 +36,15 @@ impl Default for MulticastOptions {
 pub struct MulticastSocket {
     socket: socket2::Socket,
     interfaces: HashMap<String, Vec<IpAddr>>,
-    multicast_group: MulticastGroup,
+    multicast_group: SocketAddrV4,
     buffer_size: usize,
-}
-
-#[derive(Debug, Clone)]
-pub struct MulticastGroup {
-    pub ipv4: SocketAddrV4,
-    pub port: u16,
 }
 
 impl MulticastSocket {
     pub fn new(
         options: MulticastOptions,
         interfaces: HashMap<String, Vec<IpAddr>>,
-        multicast_group: MulticastGroup,
+        multicast_group: SocketAddrV4,
     ) -> Result<Self, std::io::Error> {
         let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
         socket.set_read_timeout(Some(options.read_timeout))?;
@@ -62,13 +59,7 @@ impl MulticastSocket {
             .map_err(nix_to_io_error)?;
 
         for (if_name, addresses) in interfaces.iter() {
-            trace!(
-                "joining groups = {:?} interface = {:?}",
-                multicast_group.ipv4.ip(),
-                Ipv4Addr::UNSPECIFIED
-            );
-
-            socket.join_multicast_v4(multicast_group.ipv4.ip(), &Ipv4Addr::UNSPECIFIED);
+            trace!("joining groups = {:?}", multicast_group);
 
             for address in addresses {
                 if let IpAddr::V4(v4_addr) = address {
@@ -76,11 +67,11 @@ impl MulticastSocket {
                         continue;
                     }
 
-                    socket.join_multicast_v4(multicast_group.ipv4.ip(), v4_addr)?;
+                    socket.join_multicast_v4(multicast_group.ip(), v4_addr)?;
 
                     trace!(
                         "joined ipv4 multicast group {} {}",
-                        multicast_group.ipv4.ip(),
+                        multicast_group.ip(),
                         v4_addr
                     );
                 }
@@ -88,7 +79,7 @@ impl MulticastSocket {
         }
 
         socket.bind(
-            &SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), multicast_group.port).into(),
+            &SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), multicast_group.port()).into(),
         )?;
 
         Ok(MulticastSocket {
@@ -121,7 +112,7 @@ impl MulticastSocket {
 #[derive(Debug, Clone)]
 pub struct Message {
     pub data: Vec<u8>,
-    pub origin_address: Option<SocketAddr>,
+    pub origin_address: Option<SocketAddrV4>,
     pub interface: Interface,
 }
 
@@ -129,7 +120,7 @@ pub struct Message {
 pub enum Interface {
     Default,
     Index(i32),
-    IpAddr(Ipv6Addr),
+    IpAddr(IpAddr),
 }
 
 #[inline]
@@ -145,7 +136,7 @@ fn nix_to_io_error(e: nix::Error) -> io::Error {
 impl MulticastSocket {
     pub fn receive(&self) -> IoResult<Message> {
         let mut data_buffer = vec![0; self.buffer_size];
-        let mut control_buffer = nix::cmsg_space!(libc::in6_pktinfo, libc::in_pktinfo);
+        let mut control_buffer = nix::cmsg_space!(libc::in_pktinfo);
 
         let (origin_address, interface, bytes_read) = {
             let message = sock::recvmsg(
@@ -156,28 +147,15 @@ impl MulticastSocket {
             )
             .map_err(nix_to_io_error)?;
 
-            let origin_address = match message.address {
-                //v4 @ Some(SockaddrIn) => v4,
-                Some(sock::SockAddr::Inet(inet)) => Some(inet.to_std()),
-                _ => None,
-            };
-            //            let origin_address = match origin_address {
-            //                Some(SocketAddr::V6(v6)) => v6,
-            //                _ => SocketAddrV6::new(Ipv6Addr::UNSPECIFIED, 0, 0, 0),
-            //            };
+            let origin_address = message.address.map(|x: sock::SockaddrIn| {
+                SocketAddrV4::new(Ipv4Addr::from_bits(x.ip()), x.port())
+            });
 
-            println!("{:?}", origin_address);
             let mut interface = Interface::Default;
 
             for cmsg in message.cmsgs() {
-                if let sock::ControlMessageOwned::Ipv6PacketInfo(pktinfo) = cmsg {
-                    interface = Interface::Index(pktinfo.ipi6_ifindex as _);
-                    trace!("control packet ipv6: {:?}", pktinfo);
-                }
                 if let sock::ControlMessageOwned::Ipv4PacketInfo(pktinfo) = cmsg {
                     interface = Interface::Index(pktinfo.ipi_ifindex as _);
-
-                    trace!("control packet ipv4: {:?}", pktinfo);
                 }
             }
 
@@ -192,7 +170,31 @@ impl MulticastSocket {
     }
 
     pub fn send(&self, buf: &[u8], interface: &Interface) -> io::Result<usize> {
-        Ok(0)
+        let mut pkt_info: libc::in_pktinfo = unsafe { mem::zeroed() };
+
+        match interface {
+            Interface::Default => todo!(),
+            Interface::Index(i) => {
+                pkt_info.ipi_ifindex = *i as _;
+            }
+            Interface::IpAddr(IpAddr::V4(addr)) => {
+                pkt_info.ipi_spec_dst = libc::in_addr {
+                    s_addr: (*addr).into(),
+                };
+            }
+
+            _ => unreachable!(),
+        }
+
+        sock::sendmsg(
+            self.socket.as_raw_fd(),
+            &[IoSlice::new(buf)],
+            &[sock::ControlMessage::Ipv4PacketInfo(&pkt_info)],
+            sock::MsgFlags::empty(),
+            Some(&SockaddrIn::from(self.multicast_group)),
+        )
+        .map_err(nix_to_io_error)
+
         //    match interface {
         //        Interface::Default => todo!(),
         //        Interface::Index(index) => {
@@ -233,8 +235,4 @@ impl MulticastSocket {
         //    )
         //    .map_err(nix_to_io_error)
     }
-}
-
-fn print_type_of<T>(_: &T) {
-    println!("{}", std::any::type_name::<T>())
 }

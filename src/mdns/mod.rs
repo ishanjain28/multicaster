@@ -1,6 +1,4 @@
-use crate::socket::{
-    Interface as MulticastInterface, MulticastGroup, MulticastOptions, MulticastSocket,
-};
+use crate::socket::{Interface as MulticastInterface, MulticastOptions, MulticastSocket};
 use crate::Config;
 use dns_parser::Packet;
 use log::{info, trace, warn};
@@ -19,10 +17,7 @@ impl Mdns {
         let multicast_socket = MulticastSocket::new(
             MulticastOptions::default(),
             MulticastSocket::all_interfaces().unwrap(),
-            MulticastGroup {
-                ipv4: SocketAddrV4::new(Ipv4Addr::new(224, 0, 0, 251), 5353),
-                port: 5353,
-            },
+            SocketAddrV4::new(Ipv4Addr::new(224, 0, 0, 251), 5353),
         )
         .expect("error in creating multicast socket");
 
@@ -55,12 +50,11 @@ impl Mdns {
 
     pub fn process_packet(&self, msg: crate::socket::Message) {
         // TODO: Generalize this to parse any type of supported packet
+        trace!("{:0x?}", msg.data);
         let packet = Packet::parse(&msg.data).unwrap_or_else(|e| {
             panic!(
-                "failed to parse packet as a dns packet: {:?} error = {:?}, loose_string = {}",
-                msg,
-                e,
-                String::from_utf8_lossy(&msg.data)
+                "failed to parse packet as a dns packet. origin = {:?} interface = {:?} error = {:?}, loose_string = {:02x?}",
+                msg.origin_address,msg.interface, e, msg.data,
             )
         });
 
@@ -80,7 +74,6 @@ impl Mdns {
         );
 
         let interfaces = get_if_addrs::get_if_addrs().unwrap();
-        trace!("Interfaces: {:?}", interfaces);
         for conf in &self.config.mdns {
             let mut dst_ifs = vec![];
 
