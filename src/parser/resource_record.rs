@@ -66,6 +66,7 @@ pub enum Type {
     Srv = 33,
     Nsec = 47,
     Https = 65,
+    Opt = 41,
 }
 
 impl Type {
@@ -80,6 +81,7 @@ impl Type {
             33 => Ok(Srv),
             47 => Ok(Nsec),
             65 => Ok(Https),
+            41 => Ok(Opt),
             v => Err(ParserError::UnknownRType(v)),
         }
     }
