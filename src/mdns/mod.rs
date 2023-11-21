@@ -50,8 +50,9 @@ impl Mdns {
 
     pub fn process_packet(&self, msg: crate::socket::Message) {
         // TODO: Generalize this to parse any type of supported packet
-        trace!("{:0x?}", msg.data);
         let packet = Packet::parse(&msg.data).unwrap_or_else(|e| {
+            trace!("{:0x?}", msg.data);
+
             panic!(
                 "failed to parse packet as a dns packet. origin = {:?} interface = {:?} error = {:?}, loose_string = {:02x?}",
                 msg.origin_address,msg.interface, e, msg.data,

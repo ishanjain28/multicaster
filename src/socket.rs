@@ -4,7 +4,7 @@ use log::trace;
 // This code has been adapted from multicast_socket crate
 use nix::sys::{
     self,
-    socket::{self as sock, AddressFamily, SockAddr, SockaddrIn, SockaddrLike, SockaddrStorage},
+    socket::{self as sock, AddressFamily, SockaddrIn, SockaddrLike, SockaddrStorage},
 };
 use serde::de::value;
 use socket2::{Domain, Protocol, Socket, Type};
@@ -194,45 +194,5 @@ impl MulticastSocket {
             Some(&SockaddrIn::from(self.multicast_group)),
         )
         .map_err(nix_to_io_error)
-
-        //    match interface {
-        //        Interface::Default => todo!(),
-        //        Interface::Index(index) => {
-        //            // TODO: Send over ipv4 and ipv6
-        //            pkt_info.ipi_ifindex = *index as _;
-        //        }
-        //        Interface::Ip(IpAddr::V4(v4)) => {
-        //            let mut pkt_info: libc::in_pktinfo = unsafe { mem::zeroed() };
-        //            pkt_info.ipi_spec_dst = libc::in_addr {
-        //                s_addr: (*v4).into(),
-        //            };
-        //        }
-        //        Interface::Ip(IpAddr::V6(v6)) => {
-        //            let mut pkt_info: libc::in6_pktinfo = unsafe { mem::zeroed() };
-        //        }
-        //    }
-
-        //    match interface {
-        //        Interface::Default => {}
-        //        Interface::Ipv6(address) => {}
-        //        Interface::Ipv4(address) => {
-        //            pkt_info.ipi_spec_dst = libc::in_addr {
-        //                s_addr: (*address).into(),
-        //            }
-        //        }
-
-        //        Interface::Index(index) => pkt_info.ipi_ifindex = *index as _,
-        //    };
-
-        //    let destination = SockaddrIn::from(self.multicast_group);
-
-        //    sock::sendmsg(
-        //        self.socket.as_raw_fd(),
-        //        &[IoSlice::new(buf)],
-        //        &[sock::ControlMessage::Ipv4PacketInfo(&pkt_info)],
-        //        sock::MsgFlags::empty(),
-        //        Some(&destination),
-        //    )
-        //    .map_err(nix_to_io_error)
     }
 }
